@@ -1,0 +1,70 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: فك ضغط المشروع
+        run: |
+          set -e
+          ZIP=$(ls ./*.zip 2>/dev/null | head -n 1)
+          if [ -z "$ZIP" ]; then echo "لا يوجد ملف zip في جذر المستودع"; exit 1; fi
+          mkdir -p _src
+          unzip -q -o "$ZIP" -d _src
+          SETTINGS=$(find _src -name settings.gradle.kts | head -n 1)
+          if [ -z "$SETTINGS" ]; then echo "settings.gradle.kts غير موجود داخل الـ zip"; exit 1; fi
+          ROOT=$(dirname "$SETTINGS")
+          echo "ROOT=$GITHUB_WORKSPACE/$ROOT" >> "$GITHUB_ENV"
+          # خطوط اختيارية: أي ملفات .ttf مرفوعة في جذر المستودع تُنسخ إلى assets/fonts
+          if ls ./*.ttf >/dev/null 2>&1; then
+            mkdir -p "$ROOT/app/src/main/assets/fonts"
+            cp ./*.ttf "$ROOT/app/src/main/assets/fonts/"
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: بناء نسخة debug
+        working-directory: ${{ env.ROOT }}
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: بناء نسخة release (أصغر حجماً)
+        continue-on-error: true
+        working-directory: ${{ env.ROOT }}
+        run: gradle assembleRelease --no-daemon
+
+      - name: تجميع ملفات APK
+        run: |
+          mkdir -p out
+          cp "$ROOT"/app/build/outputs/apk/debug/*.apk out/YouTubeLite-debug.apk
+          cp "$ROOT"/app/build/outputs/apk/release/*.apk out/YouTubeLite-release.apk || true
+          ls -lh out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YouTubeLite-APK
+          path: out/*.apk
+
+      - name: نشر APK في Releases (للتحميل المباشر من الهاتف)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: YouTube Lite — build ${{ github.run_number }}
+          files: out/*.apk
