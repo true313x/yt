@@ -24,7 +24,6 @@ jobs:
           if [ -z "$SETTINGS" ]; then echo "settings.gradle.kts غير موجود داخل الـ zip"; exit 1; fi
           ROOT=$(dirname "$SETTINGS")
           echo "ROOT=$GITHUB_WORKSPACE/$ROOT" >> "$GITHUB_ENV"
-          # خطوط اختيارية: أي ملفات .ttf مرفوعة في جذر المستودع تُنسخ إلى assets/fonts
           if ls ./*.ttf >/dev/null 2>&1; then
             mkdir -p "$ROOT/app/src/main/assets/fonts"
             cp ./*.ttf "$ROOT/app/src/main/assets/fonts/"
@@ -45,7 +44,7 @@ jobs:
         working-directory: ${{ env.ROOT }}
         run: gradle assembleDebug --no-daemon --stacktrace
 
-      - name: بناء نسخة release (أصغر حجماً)
+      - name: بناء نسخة release
         continue-on-error: true
         working-directory: ${{ env.ROOT }}
         run: gradle assembleRelease --no-daemon
@@ -62,7 +61,7 @@ jobs:
           name: YouTubeLite-APK
           path: out/*.apk
 
-      - name: نشر APK في Releases (للتحميل المباشر من الهاتف)
+      - name: نشر APK في Releases
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
