@@ -35,6 +35,9 @@ jobs:
           java-version: 17
 
       - uses: android-actions/setup-android@v3
+        with:
+          # الافتراضي "tools platform-tools" — حزمة tools لم تعد موجودة في cmdline-tools الحديثة
+          packages: platform-tools
 
       - uses: gradle/actions/setup-gradle@v4
         with:
